@@ -1,12 +1,4 @@
 # ObjCCompiler is a simple module that allows you to compile Obj-C classes into a bundle so you can test them with Rucola.
-#
-# Copyright © 2009 Fingertips
-#   Eloy Duran <eloy@fngtps.com>
-#   Manfred Stienstra <manfred@fngtps.com>
-#
-# Usage:
-#   ObjCCompiler.require('lib/search_kit/match', 'WebKit')
-
 module ObjCCompiler
   class CompileError < ::StandardError; end
   
