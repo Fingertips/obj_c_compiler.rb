@@ -48,5 +48,5 @@ end
 </code></pre>
 
 Copyright © 2009 Fingertips,
-  Eloy Duran <eloy@fngtps.com>,
-  Manfred Stienstra <manfred@fngtps.com>
+  Eloy Duran &lt;eloy@fngtps.com&gt;,
+  Manfred Stienstra &lt;manfred@fngtps.com&gt;
