@@ -47,12 +47,37 @@ class ObjCCompilerBundleTest < TestCase
     end
   end
   
+  test "should know if a bundle is stale" do
+    @bundle.stubs(:implementation_file).returns(File.expand_path("../../f/Match.m", __FILE__))
+    
+    assert @bundle.stale?
+    
+    FileUtils.mkdir_p(File.dirname(@bundle.path))
+    FileUtils.touch(@bundle.path)
+    assert !@bundle.stale?
+    
+    sleep 0.51
+    FileUtils.touch(@bundle.implementation_file)
+    assert @bundle.stale?
+  end
+  
   test "compiles a class" do
     @bundle.stubs(:implementation_file).returns(File.expand_path("../../f/Match.m", __FILE__))
     @bundle.compile
     
     assert File.exist?(@bundle.path)
     assert File.size(@bundle.path) > 0
+  end
+  
+  test "compiles a class only when the implementation is newer than the bundle" do
+    @bundle.stubs(:implementation_file).returns(File.expand_path("../../f/Match.m", __FILE__))
+    @bundle.compile
+    before = File.mtime(@bundle.path)
+    
+    sleep 0.51
+    
+    @bundle.compile
+    assert_equal before, File.mtime(@bundle.path)
   end
 end
 

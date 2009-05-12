@@ -37,15 +37,22 @@ module ObjCCompiler
       end
     end
     
+    def stale?
+      return true if !File.exist?(path)
+      return true if File.mtime(implementation_file) >= File.mtime(path)
+      false
+    end
+    
     def compile
-      verify_implementation_file
-      full_path = implementation_file
-      self.class.ensure_output_directory!
-      frameworks.unshift 'Foundation'
-      
-      command = "gcc -o #{path} -flat_namespace -undefined suppress -bundle #{frameworks.map { |f| "-framework #{f}" }.join(' ')} -I#{File.dirname(full_path)} #{full_path}"
-      unless system(command)
-        raise CompileError, "Unable to compile class `#{class_name}' at path: `#{full_path}'."
+      if stale?
+        verify_implementation_file
+        self.class.ensure_output_directory!
+        
+        frameworks.unshift 'Foundation'
+        command = "gcc -o #{path} -flat_namespace -undefined suppress -bundle #{frameworks.map { |f| "-framework #{f}" }.join(' ')} -I#{File.dirname(implementation_file)} #{implementation_file}"
+        unless system(command)
+          raise CompileError, "Unable to compile class `#{class_name}' at path: `#{full_path}'."
+        end
       end
     end
     
