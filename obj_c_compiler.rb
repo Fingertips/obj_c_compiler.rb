@@ -1,54 +1,67 @@
 # ObjCCompiler is a simple module that allows you to compile Obj-C classes into a bundle so you can test them with Rucola.
 module ObjCCompiler
+  
+  # Raised when something is wrong with compilation
   class CompileError < ::StandardError; end
   
-  class << self
-    def require(path, *frameworks)
-      compile path, *frameworks
-      Kernel.require bundle_path(path)
-      OSX.ns_import klass(path).to_sym
+  # Encapsulates the bundle to be built.
+  class Bundle
+    attr_accessor :short_path, :frameworks
+    
+    def initialize(short_path, *frameworks)
+      self.short_path = short_path
+      self.frameworks = frameworks
     end
     
-    private
-    
-    def klass(path)
-      File.basename(path)
+    def class_name
+      File.basename(short_path)
     end
     
-    def output_directory
+    def to_sym
+      class_name.to_sym
+    end
+    
+    def path
+      File.join(self.class.output_directory, "#{class_name}.bundle")
+    end
+    
+    def implementation_file
+      File.join(Rucola::RCApp.root_path, "#{short_path}.m")
+    end
+    
+    def verify_implementation_file
+      full_path = implementation_file
+      function = "void Init_#{class_name}"
+      unless File.read(full_path).include?(function)
+        raise CompileError, "Implementation file `#{full_path}' should include the necessary Ruby init function `#{function}() {}'."
+      end
+    end
+    
+    def compile
+      verify_implementation_file
+      full_path = implementation_file
+      self.class.ensure_output_directory!
+      frameworks.unshift 'Foundation'
+      
+      command = "gcc -o #{path} -flat_namespace -undefined suppress -bundle #{frameworks.map { |f| "-framework #{f}" }.join(' ')} -I#{File.dirname(full_path)} #{full_path}"
+      unless system(command)
+        raise CompileError, "Unable to compile class `#{class_name}' at path: `#{full_path}'."
+      end
+    end
+    
+    def self.output_directory
       File.join(Rucola::RCApp.root_path, 'build', 'bundles')
     end
     
-    def ensure_output_directory!
+    def self.ensure_output_directory!
       FileUtils.mkdir_p(output_directory) unless File.exist?(output_directory)
     end
-    
-    def bundle_path(path)
-      File.join(output_directory, "#{klass(path)}.bundle")
-    end
-    
-    def implementation_file(path)
-      File.join(Rucola::RCApp.root_path, "#{path}.m")
-    end
-    
-    def verify_implementation_file(path)
-      full_path = implementation_file(path)
-      function = "void Init_#{klass(path)}"
-      unless File.read(full_path).include?(function)
-        raise CompileError, "Implementation file `#{full_path}' does not contain the necessary Ruby init function `#{function}() {}'."
-      end
-    end
-    
-    def compile(path, *frameworks)
-      verify_implementation_file(path)
-      full_path = implementation_file(path)
-      ensure_output_directory!
-      frameworks.unshift 'Foundation'
-      
-      command = "gcc -o #{bundle_path(path)} -flat_namespace -undefined suppress -bundle #{frameworks.map { |f| "-framework #{f}" }.join(' ')} -I#{File.dirname(full_path)} #{full_path}"
-      unless system(command)
-        raise CompileError, "Unable to compile class `#{klass(path)}' at path: `#{full_path}'."
-      end
-    end
+  end
+  
+  def self.require(path, *frameworks)
+    bundle = Bundle.new(path, *frameworks)
+    bundle.compile
+    Kernel.require bundle.path
+    OSX.ns_import bundle.to_sym
   end
 end
